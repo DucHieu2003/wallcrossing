@@ -23,6 +23,7 @@ outputs/
 # Video / image / dataset files
 # Keep code/config in git; keep raw data and datasets out.
 data/
+data_tuong/
 wall.v1i.coco/
 *.mp4
 *.avi
