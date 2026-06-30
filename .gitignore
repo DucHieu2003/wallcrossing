@@ -1,0 +1,49 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# Virtual environments / local config
+.env
+.env.*
+!.env.example
+.venv/
+venv/
+env/
+
+# Logs / runtime output
+logs/
+*.log
+runs/
+outputs/
+
+# Video / image / dataset files
+# Keep code/config in git; keep raw data and datasets out.
+data/
+wall.v1i.coco/
+*.mp4
+*.avi
+*.mov
+*.mkv
+*.jpg
+*.jpeg
+*.png
+*.bmp
+
+# Model / weight / export files
+*.pt
+*.pth
+*.onnx
+*.engine
+*.weights
+*.tflite
+*.trt
+
+# OS / editor
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
