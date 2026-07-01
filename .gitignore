@@ -10,6 +10,7 @@ __pycache__/
 .env
 .env.*
 !.env.example
+config.local.py
 .venv/
 venv/
 env/
@@ -48,3 +49,5 @@ wall.v1i.coco/
 Thumbs.db
 .vscode/
 .idea/
+
+PLAN.md
