@@ -1,17 +1,7 @@
 from __future__ import annotations
 
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from typing import Optional
-
-import numpy as np
-
-
-@dataclass
-class Frame:
-    camera_id: str
-    image: np.ndarray  # BGR HxWx3
-    timestamp: str  # ISO-8601 UTC
-    frame_index: int
 
 
 @dataclass

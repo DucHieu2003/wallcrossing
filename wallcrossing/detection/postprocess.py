@@ -70,17 +70,54 @@ def decode_yolo(
     person_class_id: int,
     iou_thres: float = 0.45,
 ) -> list[Detection]:
-    """Decode raw YOLO output into person Detections in original-image coordinates.
+    pred = np.squeeze(outputs[0], axis=0)
+    if pred.ndim != 2:
+        raise ValueError(f"unsupported YOLO output shape: {outputs[0].shape}")
 
-    Assumes a single output tensor shaped (1, 4+num_classes, num_anchors) — the
-    common Ultralytics export layout. Boxes are xywh (center) in letterboxed space.
-    Adjust here if the exported .rknn uses a different head layout.
-    """
-    pred = outputs[0]
-    pred = np.squeeze(pred, axis=0)  # (4+nc, N)
-    if pred.shape[0] < pred.shape[1]:
-        pred = pred.transpose()  # -> (N, 4+nc)
+    if pred.shape[1] == 6:
+        return _decode_end_to_end(pred, orig_shape, imgsz, conf_thres, person_class_id)
 
+    if pred.shape[0] > pred.shape[1]:
+        pred = pred.transpose()
+    return _decode_raw_head(pred, orig_shape, imgsz, conf_thres, person_class_id, iou_thres)
+
+
+def _decode_end_to_end(
+    pred: np.ndarray,
+    orig_shape: tuple[int, int],
+    imgsz: int,
+    conf_thres: float,
+    person_class_id: int,
+) -> list[Detection]:
+    boxes_xyxy = pred[:, :4]
+    cls_conf = pred[:, 4]
+    cls_id = pred[:, 5].astype(int)
+
+    mask = (cls_id == person_class_id) & (cls_conf >= conf_thres)
+    if not mask.any():
+        return []
+
+    detections: list[Detection] = []
+    for box, conf in zip(boxes_xyxy[mask], cls_conf[mask]):
+        box = _unletterbox_box(box, orig_shape, imgsz)
+        detections.append(
+            Detection(
+                bbox_xyxy=(float(box[0]), float(box[1]), float(box[2]), float(box[3])),
+                confidence=float(conf),
+                class_id=person_class_id,
+            )
+        )
+    return detections
+
+
+def _decode_raw_head(
+    pred: np.ndarray,
+    orig_shape: tuple[int, int],
+    imgsz: int,
+    conf_thres: float,
+    person_class_id: int,
+    iou_thres: float,
+) -> list[Detection]:
     boxes_xywh = pred[:, :4]
     cls_scores = pred[:, 4:]
 

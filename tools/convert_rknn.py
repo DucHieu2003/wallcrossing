@@ -6,10 +6,9 @@ The box only needs the resulting .rknn + rknn-toolkit-lite2.
   python tools/convert_rknn.py --pt weights/yolo26s.pt --out weights/yolo26s_rk3588_fp16.rknn
 
 Notes:
-- We export the model WITHOUT the head decode block so the .rknn outputs raw
-  tensors; decode + NMS run on CPU in wallcrossing/postprocess.py. This avoids
-  unsupported ops on the NPU. If your export already includes decode, adjust
-  postprocess.decode_yolo accordingly.
+- YOLO26s defaults to end-to-end output shaped (1, 300, 6), which inserts
+  TopK/GatherElements/ReduceMax into ONNX. Those ops are risky for RKNN convert.
+  This script disables end-to-end export and emits raw head output (1, 84, 8400).
 - FP16: do_quantization=False, so no calibration dataset is needed.
 """
 
@@ -24,6 +23,8 @@ def export_onnx(pt_path: str, imgsz: int) -> str:
     from ultralytics import YOLO
 
     model = YOLO(pt_path)
+    model.model.end2end = False
+    model.model.model[-1].end2end = False
     onnx_path = model.export(format="onnx", imgsz=imgsz, opset=12, simplify=True)
     return str(onnx_path)
 
