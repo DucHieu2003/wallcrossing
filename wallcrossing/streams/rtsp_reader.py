@@ -101,6 +101,12 @@ class RtspReader:
             return self._latest.copy(), self._frame_index
 
     def stop(self) -> None:
+        self.request_stop()
+        self.join()
+
+    def request_stop(self) -> None:
         self._stop.set()
+
+    def join(self) -> None:
         if self._thread is not None:
             self._thread.join(timeout=5.0)

@@ -37,6 +37,7 @@ class Pipeline:
         self.scheduler = FrameScheduler(
             {c.id: cfg.detect_fps_for(c) for c in self.cameras.values()}
         )
+        self._last_index: dict[str, int] = {}
         self._stop = False
 
     def start(self) -> None:
@@ -47,14 +48,17 @@ class Pipeline:
     def stop(self) -> None:
         self._stop = True
         for r in self.readers.values():
-            r.stop()
+            r.request_stop()
+        for r in self.readers.values():
+            r.join()
 
     def _process_camera(self, cam_id: str, now_mono: float) -> None:
         cam = self.cameras[cam_id]
         reader = self.readers[cam_id]
-        frame, _ = reader.read_latest()
-        if frame is None:
+        frame, index = reader.read_latest()
+        if frame is None or self._last_index.get(cam_id) == index:
             return
+        self._last_index[cam_id] = index
 
         detections = self.detector.detect(frame)
 
