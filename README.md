@@ -8,7 +8,7 @@ Pipeline phát hiện người chạm/vượt vùng tường từ luồng RTSP c
 RTSP camera
   -> RtspReader giữ frame mới nhất
   -> FrameScheduler chọn camera theo detect_fps
-  -> RKNNLite chạy YOLO26s trên NPU
+  -> RKNN chạy YOLO26s trên NPU
   -> postprocess decode YOLO raw-head output [1, 84, 8400]
   -> wall_contact tính overlap phần chân người với wall_polygon
   -> AlertManager lọc consecutive_hits + cooldown

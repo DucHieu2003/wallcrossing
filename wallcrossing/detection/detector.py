@@ -58,17 +58,13 @@ class UltralyticsDetector:
 
 
 class RknnDetector:
-    """On-box backend: YOLO26s FP16 .rknn via rknn-toolkit-lite2 (RKNNLite).
-
-    Post-process (decode + NMS) runs on CPU here because the model is exported
-    without the head's decode block (see tools/convert_rknn.py).
-    """
+    """On-box backend: YOLO26s FP16 .rknn via rknn-toolkit2 (RKNN)."""
 
     def __init__(self, cfg: ModelConfig):
-        from rknnlite.api import RKNNLite
+        from rknn.api import RKNN
 
         self.cfg = cfg
-        self.rknn = RKNNLite()
+        self.rknn = RKNN()
         if self.rknn.load_rknn(cfg.rknn_path) != 0:
             raise RuntimeError(f"failed to load rknn model: {cfg.rknn_path}")
         core_mask = self._core_mask(cfg.npu_cores)
@@ -77,15 +73,15 @@ class RknnDetector:
 
     @staticmethod
     def _core_mask(cores: list[int]):
-        from rknnlite.api import RKNNLite
+        from rknn.api import RKNN
 
         table = {
-            0: RKNNLite.NPU_CORE_0,
-            1: RKNNLite.NPU_CORE_1,
-            2: RKNNLite.NPU_CORE_2,
+            0: RKNN.NPU_CORE_0,
+            1: RKNN.NPU_CORE_1,
+            2: RKNN.NPU_CORE_2,
         }
         if set(cores) >= {0, 1, 2}:
-            return RKNNLite.NPU_CORE_0_1_2
+            return RKNN.NPU_CORE_0_1_2
         mask = 0
         for c in cores:
             mask |= table[c]
