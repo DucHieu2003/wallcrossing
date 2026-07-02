@@ -8,14 +8,14 @@ LOG_FILE_PATH = os.path.join(LOG_DIR, f"{LOG_FILE_PREFIX}.log")
 
 MODEL_BACKEND = "rknn"  # rknn | ultralytics | mock
 YOLO26_PT_PATH = os.path.join(SERVICE_DIR, "weights", "yolo26s.pt")
-YOLO26_RKNN_PATH = os.path.join(SERVICE_DIR, "weights", "yolo26s_rk3588_fp16.rknn")
+YOLO26_RKNN_PATH = os.path.join(SERVICE_DIR, "wallcrossing", "weights", "yolo26s_rk3588_fp16.rknn")
 NPU_CORES = [0, 1, 2]
 IMG_SIZE = 640
 DET_CONF_THRES = 0.45
 PERSON_CLASS_ID = 0
 
 DEFAULT_DETECT_FPS = 5  # 5 FPS / camera, near-real-time, predictable NPU load
-DECODE_BACKEND = "gstreamer"  # gstreamer | opencv
+DECODE_BACKEND = "opencv"  # gstreamer | opencv
 EVIDENCE_DIR = os.path.join(SERVICE_DIR, "outputs", "evidence")
 ALERT_LOG_PATH = os.path.join(SERVICE_DIR, "logs", "alerts.jsonl")
 
@@ -31,7 +31,7 @@ CAMERA_CONFIGS = [
     {
         "id": "cam_192_168_1_118",
         "name": "192-168-1-118.jpg",
-        "rtsp_url": "rtsp://user:pass@192.168.1.118:554/stream",
+        "rtsp_url": "rtsp://admin:123456@192.168.1.118:554/ch01/0",
         "enabled": True,
         "wall_polygon": [
             [322.38, 667.71],
@@ -49,7 +49,7 @@ CAMERA_CONFIGS = [
     {
         "id": "cam_192_168_1_4",
         "name": "192-168-1-4.jpg",
-        "rtsp_url": "rtsp://user:pass@192.168.1.4:554/stream",
+        "rtsp_url": "rtsp://admin:123456@192.168.1.4:554/ch01/0",
         "enabled": True,
         "wall_polygon": [
             [1503.2, 907.0],
@@ -65,7 +65,7 @@ CAMERA_CONFIGS = [
     {
         "id": "cam_192_168_1_114",
         "name": "192-168-1-114.jpg",
-        "rtsp_url": "rtsp://user:pass@192.168.1.114:554/stream",
+        "rtsp_url": "rtsp://admin:123456@192.168.1.114:554/ch01/0",
         "enabled": True,
         "wall_polygon": [
             [1194.01, 921.0],
@@ -85,7 +85,7 @@ CAMERA_CONFIGS = [
     {
         "id": "cam_192_168_1_153",
         "name": "192-168-1-153.jpg",
-        "rtsp_url": "rtsp://user:pass@192.168.1.153:554/stream",
+        "rtsp_url": "rtsp://admin:123456@192.168.1.153:554/ch01/0",
         "enabled": True,
         "wall_polygon": [
             [972.57, 911.0],
@@ -103,7 +103,7 @@ CAMERA_CONFIGS = [
     {
         "id": "cam_192_168_1_116",
         "name": "192-168-1-116.jpg",
-        "rtsp_url": "rtsp://user:pass@192.168.1.116:554/stream",
+        "rtsp_url": "rtsp://admin:123456@192.168.1.116:554/ch01/0",
         "enabled": True,
         "wall_polygon": [
             [339.14, 571.83],
@@ -120,7 +120,7 @@ CAMERA_CONFIGS = [
     {
         "id": "cam_192_168_1_211",
         "name": "192-168-1-211.jpg",
-        "rtsp_url": "rtsp://user:pass@192.168.1.211:554/stream",
+        "rtsp_url": "rtsp://admin:123456@192.168.1.211:554/ch01/0",
         "enabled": True,
         "wall_polygon": [
             [1215.2, 908.0],
@@ -138,7 +138,7 @@ CAMERA_CONFIGS = [
     {
         "id": "cam_192_168_1_125",
         "name": "192-168-1-125.jpg",
-        "rtsp_url": "rtsp://user:pass@192.168.1.125:554/stream",
+        "rtsp_url": "rtsp://admin:123456@192.168.1.125:554/ch01/0",
         "enabled": True,
         "wall_polygon": [
             [1197.31, 911.0],
@@ -156,7 +156,7 @@ CAMERA_CONFIGS = [
     {
         "id": "cam_192_168_1_124",
         "name": "192-168-1-124.jpg",
-        "rtsp_url": "rtsp://user:pass@192.168.1.124:554/stream",
+        "rtsp_url": "rtsp://admin:123456@192.168.1.124:554/ch01/0",
         "enabled": True,
         "wall_polygon": [
             [1443.25, 912.0],
@@ -175,7 +175,7 @@ CAMERA_CONFIGS = [
         "id": "cam_192_168_1_127",
         "name": "192-168-1-127.jpg",
         "rtsp_url": "rtsp://user:pass@192.168.1.127:554/stream",
-        "enabled": True,
+        "enabled": False,
         "wall_polygon": [
             [1288.89, 912.0],
             [1338.6, 792.84],
@@ -198,7 +198,7 @@ CAMERA_CONFIGS = [
         "id": "cam_192_168_1_113",
         "name": "192-168-1-113.jpg",
         "rtsp_url": "rtsp://user:pass@192.168.1.113:554/stream",
-        "enabled": True,
+        "enabled": False,
         "wall_polygon": [
             [420.4, 627.71],
             [302.0, 278.69],
@@ -215,7 +215,7 @@ CAMERA_CONFIGS = [
         "id": "cam_192_168_1_152",
         "name": "192-168-1-152.jpg",
         "rtsp_url": "rtsp://user:pass@192.168.1.152:554/stream",
-        "enabled": True,
+        "enabled": False,
         "wall_polygon": [
             [797.6, 560.47],
             [621.6, 198.64],
@@ -230,7 +230,7 @@ CAMERA_CONFIGS = [
         "id": "cam_192_168_1_115",
         "name": "192-168-1-115.jpg",
         "rtsp_url": "rtsp://user:pass@192.168.1.115:554/stream",
-        "enabled": True,
+        "enabled": False,
         "wall_polygon": [
             [1519.6, 1.32],
             [1502.0, 196.64],
@@ -247,7 +247,7 @@ CAMERA_CONFIGS = [
         "id": "cam_192_168_1_123",
         "name": "192-168-1-123.jpg",
         "rtsp_url": "rtsp://user:pass@192.168.1.123:554/stream",
-        "enabled": True,
+        "enabled": False,
         "wall_polygon": [
             [1242.26, 907.0],
             [1347.23, 542.43],
@@ -267,7 +267,7 @@ CAMERA_CONFIGS = [
         "id": "cam_192_168_1_126",
         "name": "192-168-1-126.jpg",
         "rtsp_url": "rtsp://user:pass@192.168.1.126:554/stream",
-        "enabled": True,
+        "enabled": False,
         "wall_polygon": [
             [1458.54, 914.0],
             [1543.91, 235.51],
@@ -283,7 +283,7 @@ CAMERA_CONFIGS = [
         "id": "cam_192_168_1_110",
         "name": "192-168-1-110.jpg",
         "rtsp_url": "rtsp://user:pass@192.168.1.110:554/stream",
-        "enabled": True,
+        "enabled": False,
         "wall_polygon": [
             [497.77, 678.87],
             [446.02, 521.06],
@@ -303,7 +303,7 @@ CAMERA_CONFIGS = [
         "id": "cam_192_168_1_109",
         "name": "192-168-1-109.jpg",
         "rtsp_url": "rtsp://user:pass@192.168.1.109:554/stream",
-        "enabled": True,
+        "enabled": False,
         "wall_polygon": [
             [276.0, 530.45],
             [300.0, 740.18],
@@ -322,7 +322,7 @@ CAMERA_CONFIGS = [
         "id": "cam_192_168_1_122",
         "name": "192-168-1-122.jpg",
         "rtsp_url": "rtsp://user:pass@192.168.1.122:554/stream",
-        "enabled": True,
+        "enabled": False,
         "wall_polygon": [
             [255.94, 538.6],
             [141.65, 61.45],
@@ -338,7 +338,7 @@ CAMERA_CONFIGS = [
         "id": "cam_192_168_1_112",
         "name": "192-168-1-112.jpg",
         "rtsp_url": "rtsp://user:pass@192.168.1.112:554/stream",
-        "enabled": True,
+        "enabled": False,
         "wall_polygon": [
             [304.8, 642.12],
             [255.2, 357.14],
@@ -357,7 +357,7 @@ CAMERA_CONFIGS = [
         "id": "cam_192_168_1_218",
         "name": "192-168-1-218.jpg",
         "rtsp_url": "rtsp://user:pass@192.168.1.218:554/stream",
-        "enabled": True,
+        "enabled": False,
         "wall_polygon": [
             [1127.59, 910.0],
             [1318.18, 480.24],

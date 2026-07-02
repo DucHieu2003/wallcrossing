@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import logging
+import os
 import threading
 import time
 from typing import Optional
@@ -54,6 +55,7 @@ class RtspReader:
     def _open(self) -> cv2.VideoCapture:
         if self.decode_backend == "gstreamer":
             return cv2.VideoCapture(_gstreamer_pipeline(self.rtsp_url), cv2.CAP_GSTREAMER)
+        os.environ.setdefault("OPENCV_FFMPEG_CAPTURE_OPTIONS", "rtsp_transport;tcp")
         cap = cv2.VideoCapture(self.rtsp_url, cv2.CAP_FFMPEG)
         cap.set(cv2.CAP_PROP_BUFFERSIZE, 1)
         return cap
@@ -78,11 +80,21 @@ class RtspReader:
             delay = self.reconnect_delay
             logger.info("cam=%s connected", self.camera_id)
 
+            consecutive_failures = 0
             while not self._stop.is_set():
                 ok, frame = cap.read()
                 if not ok or frame is None:
-                    logger.warning("cam=%s read failed, reconnecting", self.camera_id)
-                    break
+                    consecutive_failures += 1
+                    if consecutive_failures >= 30:
+                        logger.warning(
+                            "cam=%s read failed %d times, reconnecting",
+                            self.camera_id,
+                            consecutive_failures,
+                        )
+                        break
+                    time.sleep(0.02)
+                    continue
+                consecutive_failures = 0
                 with self._lock:
                     self._latest = frame
                     self._frame_index += 1

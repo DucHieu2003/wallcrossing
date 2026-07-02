@@ -68,7 +68,7 @@ class RknnDetector:
         if self.rknn.load_rknn(cfg.rknn_path) != 0:
             raise RuntimeError(f"failed to load rknn model: {cfg.rknn_path}")
         core_mask = self._core_mask(cfg.npu_cores)
-        if self.rknn.init_runtime(core_mask=core_mask) != 0:
+        if self.rknn.init_runtime(target="rk3588", core_mask=core_mask) != 0:
             raise RuntimeError("failed to init rknn runtime")
 
     @staticmethod

@@ -77,7 +77,7 @@ def decode_yolo(
     if pred.shape[1] == 6:
         return _decode_end_to_end(pred, orig_shape, imgsz, conf_thres, person_class_id)
 
-    if pred.shape[0] > pred.shape[1]:
+    if pred.shape[0] < pred.shape[1]:
         pred = pred.transpose()
     return _decode_raw_head(pred, orig_shape, imgsz, conf_thres, person_class_id, iou_thres)
 
