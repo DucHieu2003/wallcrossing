@@ -16,11 +16,11 @@ PERSON_CLASS_ID = 0
 
 DEFAULT_DETECT_FPS = 5  # 5 FPS / camera, near-real-time, predictable NPU load
 DECODE_BACKEND = "opencv"  # gstreamer | opencv
-# "opencv" (FFmpeg) decode H.264 bang CPU — rat nang voi nhieu camera.
+# "opencv" (FFmpeg) decode bang CPU — rat nang voi nhieu camera, dac biet H.265.
 # Neu ffmpeg tren box co decoder rkmpp (kiem tra: ffmpeg -decoders | grep rkmpp)
-# thi dat FFMPEG_VIDEO_CODEC = "h264_rkmpp" de decode bang VPU, giam manh CPU.
+# thi dat FFMPEG_VIDEO_CODEC = "hevc_rkmpp" de decode bang VPU, giam manh CPU.
 FFMPEG_VIDEO_CODEC = ""
-RTSP_CODEC = "h264"  # h264 | h265 (chi dung cho backend gstreamer)
+RTSP_CODEC = "h265"  # h264 | h265 (chi dung cho backend gstreamer) — camera hien tai la HEVC
 EVIDENCE_DIR = os.path.join(SERVICE_DIR, "outputs", "evidence")
 ALERT_LOG_PATH = os.path.join(SERVICE_DIR, "logs", "alerts.jsonl")
 

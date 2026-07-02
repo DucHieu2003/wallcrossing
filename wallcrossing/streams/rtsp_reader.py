@@ -129,6 +129,9 @@ class RtspReader:
         delay = self.reconnect_delay
         while not self._stop.is_set():
             cap = self._open()
+            if self._stop.is_set():
+                cap.release()
+                break
             if not cap.isOpened():
                 self.connected = False
                 logger.warning("cam=%s open failed, retry in %.1fs", self.camera_id, delay)

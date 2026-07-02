@@ -91,7 +91,7 @@ class RknnDetector:
         from wallcrossing.detection import postprocess
 
         inp = postprocess.letterbox(image, self.cfg.imgsz)
-        outputs = self.rknn.inference(inputs=[inp])
+        outputs = self.rknn.inference(inputs=[inp], data_format="nhwc")
         return postprocess.decode_yolo(
             outputs,
             orig_shape=image.shape[:2],
