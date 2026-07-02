@@ -31,22 +31,23 @@ def gstreamer_available() -> bool:
     return _GST_AVAILABLE
 
 
-def _gstreamer_pipeline(rtsp_url: str, codec: str, max_fps: float) -> str:
+def _gstreamer_pipeline(rtsp_url: str, codec: str) -> str:
     """Hardware-decoded (rkmpp) pipeline for RK3588. Requires OpenCV built with GStreamer.
 
-    mppvideodec decodes on the VPU (cheap), but videoconvert (NV12 -> BGR) runs
-    on the CPU at full resolution. videorate drop-only sits between them so only
-    ~max_fps frames per second reach videoconvert — dropped frames cost nothing.
+    mppvideodec decodes on the VPU (cheap); videoconvert (NV12 -> BGR) runs on
+    the CPU. The leaky queue in between holds only the newest decoded frame and
+    silently drops the rest while the reader isn't pulling, so videoconvert only
+    runs at the reader's pull rate (~target_fps), not at stream rate.
+
+    NOTE: no videorate here — with live RTSP buffers (no duration) its max-rate
+    path hits a glib assertion and abort()s the whole process.
     """
-    rate = ""
-    if max_fps > 0:
-        rate = f"videorate drop-only=true max-rate={max(1, int(round(max_fps)))} ! "
     return (
         f"rtspsrc location={rtsp_url} latency=200 protocols=tcp tcp-timeout=5000000 ! "
         f"{_DEPAY[codec]} ! mppvideodec ! "
-        f"{rate}"
+        "queue leaky=downstream max-size-buffers=1 ! "
         "videoconvert ! video/x-raw,format=BGR ! "
-        "appsink drop=true max-buffers=1 sync=false"
+        "appsink drop=false max-buffers=1 sync=false"
     )
 
 
@@ -108,7 +109,7 @@ class RtspReader:
 
         if backend == "gstreamer":
             return cv2.VideoCapture(
-                _gstreamer_pipeline(self.rtsp_url, self.codec, self.target_fps),
+                _gstreamer_pipeline(self.rtsp_url, self.codec),
                 cv2.CAP_GSTREAMER,
             )
 
@@ -144,17 +145,22 @@ class RtspReader:
             delay = self.reconnect_delay
             logger.info("cam=%s connected (%s)", self.camera_id, self._active_backend)
 
-            # gstreamer already throttles in-pipeline (videorate); only the
-            # FFmpeg path needs retrieve()-throttling here.
-            throttle = (
-                1.0 / self.target_fps
-                if self.target_fps > 0 and self._active_backend != "gstreamer"
-                else 0.0
-            )
-            next_retrieve = 0.0
+            # Two throttle styles:
+            # - gstreamer: sleep until the next slot, then pull. While we sleep
+            #   the leaky queue drops frames as cheap NV12 before videoconvert.
+            # - opencv/FFmpeg: grab() every frame (the decoder must consume all
+            #   of them), but retrieve() (YUV->BGR) only once per slot.
+            interval = 1.0 / self.target_fps if self.target_fps > 0 else 0.0
+            is_gst = self._active_backend == "gstreamer"
+            next_slot = 0.0
 
             consecutive_failures = 0
             while not self._stop.is_set():
+                if is_gst and interval:
+                    wait = next_slot - time.monotonic()
+                    if wait > 0 and self._stop.wait(wait):
+                        break
+
                 if not cap.grab():
                     consecutive_failures += 1
                     if consecutive_failures >= 30:
@@ -168,15 +174,17 @@ class RtspReader:
                     continue
                 consecutive_failures = 0
 
-                if throttle:
+                if not is_gst and interval:
                     now = time.monotonic()
-                    if now < next_retrieve:
+                    if now < next_slot:
                         continue
-                    next_retrieve = now + throttle
+                    next_slot = now + interval
 
                 ok, frame = cap.retrieve()
                 if not ok or frame is None:
                     continue
+                if is_gst:
+                    next_slot = time.monotonic() + interval
                 with self._lock:
                     self._latest = frame
                     self._frame_index += 1
