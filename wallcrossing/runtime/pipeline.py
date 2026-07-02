@@ -37,6 +37,7 @@ class Pipeline:
                 decode_backend=cfg.pipeline.decode_backend,
                 target_fps=cfg.detect_fps_for(c),
                 codec=cfg.pipeline.codec,
+                transport=cfg.pipeline.transport,
                 ffmpeg_video_codec=cfg.pipeline.ffmpeg_video_codec,
                 initial_delay=i * 0.5,
             )

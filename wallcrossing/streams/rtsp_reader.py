@@ -31,7 +31,7 @@ def gstreamer_available() -> bool:
     return _GST_AVAILABLE
 
 
-def _gstreamer_pipeline(rtsp_url: str, codec: str) -> str:
+def _gstreamer_pipeline(rtsp_url: str, codec: str, transport: str = "tcp") -> str:
     """Hardware-decoded (rkmpp) pipeline for RK3588. Requires OpenCV built with GStreamer.
 
     mppvideodec decodes on the VPU (cheap); videoconvert (NV12 -> BGR) runs on
@@ -46,7 +46,7 @@ def _gstreamer_pipeline(rtsp_url: str, codec: str) -> str:
     path hits a glib assertion and abort()s the whole process.
     """
     return (
-        f"rtspsrc location={rtsp_url} latency=200 protocols=tcp ! "
+        f"rtspsrc location={rtsp_url} latency=200 protocols={transport} ! "
         f"{_DEPAY[codec]} ! mppvideodec ! "
         "queue leaky=downstream max-size-buffers=1 ! "
         "videoconvert ! video/x-raw,format=BGR ! "
@@ -75,6 +75,7 @@ class RtspReader:
         decode_backend: str = "gstreamer",
         target_fps: float = 0.0,
         codec: str = "h264",
+        transport: str = "tcp",
         ffmpeg_video_codec: str = "",
         reconnect_delay: float = 2.0,
         max_reconnect_delay: float = 30.0,
@@ -85,6 +86,7 @@ class RtspReader:
         self.decode_backend = decode_backend
         self.target_fps = target_fps
         self.codec = codec
+        self.transport = transport
         self.ffmpeg_video_codec = ffmpeg_video_codec
         self.reconnect_delay = reconnect_delay
         self.max_reconnect_delay = max_reconnect_delay
@@ -114,12 +116,12 @@ class RtspReader:
 
         if backend == "gstreamer":
             return cv2.VideoCapture(
-                _gstreamer_pipeline(self.rtsp_url, self.codec),
+                _gstreamer_pipeline(self.rtsp_url, self.codec, self.transport),
                 cv2.CAP_GSTREAMER,
             )
 
         # This env var is global for the whole process; all cameras share it.
-        opts = "rtsp_transport;tcp"
+        opts = f"rtsp_transport;{self.transport}"
         if self.ffmpeg_video_codec:
             opts += f"|video_codec;{self.ffmpeg_video_codec}"
         os.environ["OPENCV_FFMPEG_CAPTURE_OPTIONS"] = opts

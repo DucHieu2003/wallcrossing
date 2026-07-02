@@ -21,6 +21,7 @@ DECODE_BACKEND = "opencv"  # gstreamer | opencv
 # thi dat FFMPEG_VIDEO_CODEC = "hevc_rkmpp" de decode bang VPU, giam manh CPU.
 FFMPEG_VIDEO_CODEC = ""
 RTSP_CODEC = "h265"  # h264 | h265 (chi dung cho backend gstreamer) — camera hien tai la HEVC
+RTSP_TRANSPORT = "tcp"  # tcp | udp — mot so camera chay UDP on dinh hon TCP
 EVIDENCE_DIR = os.path.join(SERVICE_DIR, "outputs", "evidence")
 ALERT_LOG_PATH = os.path.join(SERVICE_DIR, "logs", "alerts.jsonl")
 
