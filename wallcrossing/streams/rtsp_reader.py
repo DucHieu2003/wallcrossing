@@ -35,19 +35,22 @@ def _gstreamer_pipeline(rtsp_url: str, codec: str) -> str:
     """Hardware-decoded (rkmpp) pipeline for RK3588. Requires OpenCV built with GStreamer.
 
     mppvideodec decodes on the VPU (cheap); videoconvert (NV12 -> BGR) runs on
-    the CPU. The leaky queue in between holds only the newest decoded frame and
-    silently drops the rest while the reader isn't pulling, so videoconvert only
-    runs at the reader's pull rate (~target_fps), not at stream rate.
+    the CPU. Nothing in this chain may ever block upstream: backpressure onto
+    the decoder starves its DMA buffer pool and stalls the TCP socket, which
+    kills rtspsrc after a few seconds ("Could not read from resource"). So the
+    leaky queue drops (cheap NV12) instead of blocking when videoconvert is
+    busy, and appsink drops (drop=true) instead of blocking when the reader
+    hasn't pulled yet.
 
     NOTE: no videorate here — with live RTSP buffers (no duration) its max-rate
     path hits a glib assertion and abort()s the whole process.
     """
     return (
-        f"rtspsrc location={rtsp_url} latency=200 protocols=tcp tcp-timeout=5000000 ! "
+        f"rtspsrc location={rtsp_url} latency=200 protocols=tcp ! "
         f"{_DEPAY[codec]} ! mppvideodec ! "
         "queue leaky=downstream max-size-buffers=1 ! "
         "videoconvert ! video/x-raw,format=BGR ! "
-        "appsink drop=false max-buffers=1 sync=false"
+        "appsink drop=true max-buffers=1 sync=false"
     )
 
 
@@ -75,6 +78,7 @@ class RtspReader:
         ffmpeg_video_codec: str = "",
         reconnect_delay: float = 2.0,
         max_reconnect_delay: float = 30.0,
+        initial_delay: float = 0.0,
     ):
         self.camera_id = camera_id
         self.rtsp_url = rtsp_url
@@ -84,6 +88,7 @@ class RtspReader:
         self.ffmpeg_video_codec = ffmpeg_video_codec
         self.reconnect_delay = reconnect_delay
         self.max_reconnect_delay = max_reconnect_delay
+        self.initial_delay = initial_delay
 
         self._lock = threading.Lock()
         self._latest: Optional[np.ndarray] = None
@@ -127,6 +132,9 @@ class RtspReader:
         self._thread.start()
 
     def _run(self) -> None:
+        # stagger startup so N cameras don't all get RTSP handshakes at once
+        if self.initial_delay > 0 and self._stop.wait(self.initial_delay):
+            return
         delay = self.reconnect_delay
         while not self._stop.is_set():
             cap = self._open()

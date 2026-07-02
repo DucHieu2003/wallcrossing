@@ -38,8 +38,9 @@ class Pipeline:
                 target_fps=cfg.detect_fps_for(c),
                 codec=cfg.pipeline.codec,
                 ffmpeg_video_codec=cfg.pipeline.ffmpeg_video_codec,
+                initial_delay=i * 0.5,
             )
-            for c in self.cameras.values()
+            for i, c in enumerate(self.cameras.values())
         }
         self.scheduler = FrameScheduler(
             {c.id: cfg.detect_fps_for(c) for c in self.cameras.values()}

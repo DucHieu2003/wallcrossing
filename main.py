@@ -55,9 +55,20 @@ def log_startup_banner(cfg) -> None:
     logger.info("=" * 60)
 
 
+def quiet_opencv_warnings() -> None:
+    """Keep only OpenCV errors; GStreamer reconnect WARN spam drowns our own logs."""
+    try:
+        import cv2
+
+        cv2.utils.logging.setLogLevel(cv2.utils.logging.LOG_LEVEL_ERROR)
+    except Exception:
+        pass
+
+
 def main() -> int:
     args = parse_args()
     setup_logging(args.log_level, LOG_FILE_PATH)
+    quiet_opencv_warnings()
 
     cfg = load_runtime_config()
     log_startup_banner(cfg)
