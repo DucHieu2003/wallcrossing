@@ -32,6 +32,8 @@ class ModelConfig(BaseModel):
 class PipelineConfig(BaseModel):
     default_detect_fps: float = 0.0
     decode_backend: Literal["gstreamer", "opencv"] = "gstreamer"
+    codec: Literal["h264", "h265"] = "h264"
+    ffmpeg_video_codec: str = ""
     evidence_dir: str = "outputs/evidence"
     alert_log_path: str = "logs/alerts.jsonl"
 
@@ -122,6 +124,8 @@ def load_runtime_config() -> AppConfig:
         "pipeline": {
             "default_detect_fps": runtime_config.DEFAULT_DETECT_FPS,
             "decode_backend": runtime_config.DECODE_BACKEND,
+            "codec": getattr(runtime_config, "RTSP_CODEC", "h264"),
+            "ffmpeg_video_codec": getattr(runtime_config, "FFMPEG_VIDEO_CODEC", ""),
             "evidence_dir": runtime_config.EVIDENCE_DIR,
             "alert_log_path": runtime_config.ALERT_LOG_PATH,
         },

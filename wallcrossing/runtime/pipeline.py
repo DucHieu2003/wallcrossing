@@ -31,7 +31,14 @@ class Pipeline:
         )
         self.cameras = {c.id: c for c in cfg.enabled_cameras()}
         self.readers: dict[str, RtspReader] = {
-            c.id: RtspReader(c.id, c.rtsp_url, decode_backend=cfg.pipeline.decode_backend)
+            c.id: RtspReader(
+                c.id,
+                c.rtsp_url,
+                decode_backend=cfg.pipeline.decode_backend,
+                target_fps=cfg.detect_fps_for(c),
+                codec=cfg.pipeline.codec,
+                ffmpeg_video_codec=cfg.pipeline.ffmpeg_video_codec,
+            )
             for c in self.cameras.values()
         }
         self.scheduler = FrameScheduler(
