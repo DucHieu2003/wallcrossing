@@ -45,7 +45,37 @@ class Pipeline:
             {c.id: cfg.detect_fps_for(c) for c in self.cameras.values()}
         )
         self._last_index: dict[str, int] = {}
+        # cam_id -> ((frame_h, frame_w), polygon scaled to that frame size)
+        self._scaled_polygons: dict[str, tuple[tuple[int, int], list[list[float]]]] = {}
         self._stop = False
+
+    def _wall_polygon_for(self, cam, frame_shape: tuple[int, int]) -> list[list[float]]:
+        """Wall polygon in the coordinate space of the actual frame.
+
+        Polygons are drawn on reference images (polygon_ref_size); when the RTSP
+        frame has a different resolution (e.g. substream) they are scaled once
+        and cached per frame size.
+        """
+        cached = self._scaled_polygons.get(cam.id)
+        if cached is not None and cached[0] == frame_shape:
+            return cached[1]
+
+        h, w = frame_shape
+        if cam.polygon_ref_size:
+            ref_w, ref_h = cam.polygon_ref_size
+            sx, sy = w / ref_w, h / ref_h
+            polygon = [[x * sx, y * sy] for x, y in cam.wall_polygon]
+            if abs(sx / sy - 1.0) > 0.02:
+                logger.warning(
+                    "cam=%s frame %dx%d khac ty le khung hinh voi polygon_ref_size %sx%s "
+                    "- polygon co the bi meo, nen ve lai tren dung do phan giai",
+                    cam.id, w, h, ref_w, ref_h,
+                )
+        else:
+            polygon = cam.wall_polygon
+
+        self._scaled_polygons[cam.id] = (frame_shape, polygon)
+        return polygon
 
     def start(self) -> None:
         for r in self.readers.values():
@@ -68,13 +98,14 @@ class Pipeline:
         self._last_index[cam_id] = index
 
         detections = self.detector.detect(frame)
+        wall_polygon = self._wall_polygon_for(cam, frame.shape[:2])
 
         best = None
         best_ratio = 0.0
         for det in detections:
             hit, ratio = touches_wall(
                 det.bbox_xyxy,
-                cam.wall_polygon,
+                wall_polygon,
                 self.cfg.rules.min_overlap_ratio,
                 self.cfg.rules.contact_mode,
                 self.cfg.rules.bottom_band_ratio,
@@ -91,7 +122,7 @@ class Pipeline:
         alert_id = f"{cam_id}-{ts.replace(':', '').replace('-', '').replace('.', '')}"
         out_path = evidence_path(self.cfg.pipeline.evidence_dir, cam_id, ts, alert_id)
         label = f"{cam.name or cam_id} {best.confidence:.2f} {ts}"
-        draw_and_save(frame, cam.wall_polygon, best, label, out_path)
+        draw_and_save(frame, wall_polygon, best, label, out_path)
 
         event = AlertEvent(
             alert_id=alert_id,
@@ -100,7 +131,7 @@ class Pipeline:
             timestamp=ts,
             bbox_xyxy=best.bbox_xyxy,
             confidence=best.confidence,
-            wall_polygon=cam.wall_polygon,
+            wall_polygon=wall_polygon,
             overlap_ratio=best_ratio,
             evidence_path=str(out_path),
         )

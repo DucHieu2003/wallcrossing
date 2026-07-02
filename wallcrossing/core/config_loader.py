@@ -74,6 +74,15 @@ class CameraConfig(BaseModel):
     enabled: bool = True
     detect_fps: float | None = None
     wall_polygon: list[list[float]]
+    # (W, H) of the image the polygon was drawn on; None = already in frame coords
+    polygon_ref_size: list[float] | None = None
+
+    @field_validator("polygon_ref_size")
+    @classmethod
+    def _ref_size_valid(cls, v: list[float] | None) -> list[float] | None:
+        if v is not None and (len(v) != 2 or v[0] <= 0 or v[1] <= 0):
+            raise ValueError("polygon_ref_size must be [width, height] > 0")
+        return v
 
     @field_validator("wall_polygon")
     @classmethod
@@ -136,6 +145,9 @@ def load_runtime_config() -> AppConfig:
             "contact_mode": runtime_config.CONTACT_MODE,
             "bottom_band_ratio": runtime_config.BOTTOM_BAND_RATIO,
         },
-        "cameras": runtime_config.CAMERA_CONFIGS,
+        "cameras": [
+            {"polygon_ref_size": getattr(runtime_config, "POLYGON_REF_SIZE", None), **cam}
+            for cam in runtime_config.CAMERA_CONFIGS
+        ],
     }
     return AppConfig.model_validate(raw)

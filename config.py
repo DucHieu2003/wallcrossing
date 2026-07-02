@@ -24,6 +24,12 @@ RTSP_CODEC = "h265"  # h264 | h265 (chi dung cho backend gstreamer) — camera h
 EVIDENCE_DIR = os.path.join(SERVICE_DIR, "outputs", "evidence")
 ALERT_LOG_PATH = os.path.join(SERVICE_DIR, "logs", "alerts.jsonl")
 
+# Kich thuoc anh (W, H) ma wall_polygon duoc ve tren do (anh Roboflow).
+# Neu frame RTSP co do phan giai khac (vd doi sang substream /ch01/1),
+# polygon se duoc tu dong scale theo ty le. De None neu polygon da dung
+# toa do cua frame thuc te.
+POLYGON_REF_SIZE = None  # vd: [1620, 920]
+
 MIN_OVERLAP_RATIO = 0.02
 CONSECUTIVE_HITS = 2
 COOLDOWN_SECONDS = 30
