@@ -31,25 +31,37 @@ def gstreamer_available() -> bool:
     return _GST_AVAILABLE
 
 
-def _gstreamer_pipeline(rtsp_url: str, codec: str, transport: str = "tcp") -> str:
+# Whether OpenCV's GStreamer capture accepts NV12 appsink caps.
+# None = not yet known; decided once by the first reader that tries, shared by all.
+_NV12_SUPPORTED: Optional[bool] = None
+
+
+def _gstreamer_pipeline(rtsp_url: str, codec: str, transport: str, fmt: str) -> str:
     """Hardware-decoded (rkmpp) pipeline for RK3588. Requires OpenCV built with GStreamer.
 
-    mppvideodec decodes on the VPU (cheap); videoconvert (NV12 -> BGR) runs on
-    the CPU. Nothing in this chain may ever block upstream: backpressure onto
-    the decoder starves its DMA buffer pool and stalls the TCP socket, which
-    kills rtspsrc after a few seconds ("Could not read from resource"). So the
-    leaky queue drops (cheap NV12) instead of blocking when videoconvert is
-    busy, and appsink drops (drop=true) instead of blocking when the reader
-    hasn't pulled yet.
+    Preferred shape (fmt="NV12"): the decoder hands NV12 straight to appsink —
+    zero per-frame CPU in the pipeline. Excess frames are dropped by appsink as
+    cheap NV12 buffers; the reader converts to BGR in Python only at target_fps.
 
-    NOTE: no videorate here — with live RTSP buffers (no duration) its max-rate
-    path hits a glib assertion and abort()s the whole process.
+    Fallback shape (fmt="BGR", when OpenCV can't take NV12 from appsink):
+    videoconvert runs on the CPU at full stream rate; the leaky queue drops
+    frames instead of blocking when it falls behind. At 2560x1440 this costs
+    real CPU per camera — NV12 is much cheaper.
+
+    Nothing here may ever block upstream: backpressure onto the decoder starves
+    its DMA pool and stalls the TCP socket, killing rtspsrc within seconds.
+    NOTE: no videorate — with live RTSP buffers (no duration) its max-rate path
+    hits a glib assertion and abort()s the whole process.
     """
-    return (
+    src = (
         f"rtspsrc location={rtsp_url} latency=200 protocols={transport} ! "
-        f"{_DEPAY[codec]} ! mppvideodec ! "
+        f"{_DEPAY[codec]} ! mppvideodec format=NV12 ! "
+    )
+    if fmt == "NV12":
+        return src + "video/x-raw,format=NV12 ! appsink drop=true max-buffers=1 sync=false"
+    return src + (
         "queue leaky=downstream max-size-buffers=1 ! "
-        "videoconvert ! video/x-raw,format=BGR ! "
+        "videoconvert n-threads=2 ! video/x-raw,format=BGR ! "
         "appsink drop=true max-buffers=1 sync=false"
     )
 
@@ -98,6 +110,7 @@ class RtspReader:
         self._stop = threading.Event()
         self._thread: Optional[threading.Thread] = None
         self._active_backend = decode_backend
+        self._gst_format = "BGR"
         self.connected = False
         self.reconnect_count = 0
         self.last_frame_mono: float = 0.0
@@ -115,10 +128,22 @@ class RtspReader:
         self._active_backend = backend
 
         if backend == "gstreamer":
-            return cv2.VideoCapture(
-                _gstreamer_pipeline(self.rtsp_url, self.codec, self.transport),
+            global _NV12_SUPPORTED
+            fmt = "BGR" if _NV12_SUPPORTED is False else "NV12"
+            cap = cv2.VideoCapture(
+                _gstreamer_pipeline(self.rtsp_url, self.codec, self.transport, fmt),
                 cv2.CAP_GSTREAMER,
             )
+            if fmt == "NV12" and not cap.isOpened() and _NV12_SUPPORTED is None:
+                _NV12_SUPPORTED = False
+                logger.info("OpenCV khong nhan appsink NV12, chuyen sang videoconvert BGR")
+                cap.release()
+                cap = cv2.VideoCapture(
+                    _gstreamer_pipeline(self.rtsp_url, self.codec, self.transport, "BGR"),
+                    cv2.CAP_GSTREAMER,
+                )
+            self._gst_format = fmt if _NV12_SUPPORTED is not False else "BGR"
+            return cap
 
         # This env var is global for the whole process; all cameras share it.
         opts = f"rtsp_transport;{self.transport}"
@@ -134,6 +159,7 @@ class RtspReader:
         self._thread.start()
 
     def _run(self) -> None:
+        global _NV12_SUPPORTED
         # stagger startup so N cameras don't all get RTSP handshakes at once
         if self.initial_delay > 0 and self._stop.wait(self.initial_delay):
             return
@@ -165,6 +191,7 @@ class RtspReader:
             next_slot = 0.0
 
             consecutive_failures = 0
+            session_frames = 0
             while not self._stop.is_set():
                 if is_gst and interval:
                     wait = next_slot - time.monotonic()
@@ -193,12 +220,30 @@ class RtspReader:
                 ok, frame = cap.retrieve()
                 if not ok or frame is None:
                     continue
+                if frame.ndim == 2:
+                    # appsink delivered raw NV12 (h*3/2, w); convert here, at
+                    # target_fps only — this is the whole point of the NV12 path
+                    frame = cv2.cvtColor(frame, cv2.COLOR_YUV2BGR_NV12)
                 if is_gst:
                     next_slot = time.monotonic() + interval
+                    if _NV12_SUPPORTED is None and self._gst_format == "NV12":
+                        _NV12_SUPPORTED = True
                 with self._lock:
                     self._latest = frame
                     self._frame_index += 1
+                session_frames += 1
                 self.last_frame_mono = time.monotonic()
+
+            # NV12 caps negotiated but no frame ever arrived: the format is not
+            # actually usable through OpenCV — fall back to BGR for everyone.
+            if (
+                is_gst
+                and session_frames == 0
+                and self._gst_format == "NV12"
+                and _NV12_SUPPORTED is None
+            ):
+                _NV12_SUPPORTED = False
+                logger.info("cam=%s NV12 khong ra frame, chuyen sang videoconvert BGR", self.camera_id)
 
             cap.release()
             self.connected = False

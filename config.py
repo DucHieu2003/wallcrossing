@@ -26,10 +26,10 @@ EVIDENCE_DIR = os.path.join(SERVICE_DIR, "outputs", "evidence")
 ALERT_LOG_PATH = os.path.join(SERVICE_DIR, "logs", "alerts.jsonl")
 
 # Kich thuoc anh (W, H) ma wall_polygon duoc ve tren do (anh Roboflow).
-# Neu frame RTSP co do phan giai khac (vd doi sang substream /ch01/1),
-# polygon se duoc tu dong scale theo ty le. De None neu polygon da dung
-# toa do cua frame thuc te.
-POLYGON_REF_SIZE = None  # vd: [1620, 920]
+# Frame RTSP thuc te la 2560x1440 nen polygon PHAI duoc scale theo ty le nay.
+# Hay kiem tra lai dung kich thuoc anh trong ban export Roboflow cua ban
+# (toa do polygon max ~1610x921 => uoc luong 1620x920).
+POLYGON_REF_SIZE = [1620, 920]
 
 MIN_OVERLAP_RATIO = 0.02
 CONSECUTIVE_HITS = 2
