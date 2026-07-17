@@ -1,0 +1,40 @@
+[Unit]
+Description=Wall Crossing Detection Service
+Wants=network-online.target
+After=network-online.target
+StartLimitIntervalSec=300
+StartLimitBurst=10
+
+[Service]
+Type=notify
+NotifyAccess=main
+User=vta-giavu3
+Group=vta-giavu3
+WorkingDirectory=/home/vta-giavu3/apps/wallcrossing
+ExecStart=/usr/bin/python3 /home/vta-giavu3/apps/wallcrossing/main.py --log-level INFO
+Environment=HOME=/home/vta-giavu3
+Environment=PYTHONUNBUFFERED=1
+Environment=OPENCV_LOG_LEVEL=ERROR
+Restart=always
+RestartSec=10s
+WatchdogSec=90s
+TimeoutStartSec=60s
+TimeoutStopSec=20s
+KillSignal=SIGTERM
+KillMode=mixed
+SendSIGKILL=yes
+MemoryAccounting=yes
+MemoryHigh=5500M
+MemoryMax=6500M
+MemorySwapMax=0
+OOMPolicy=kill
+LimitNOFILE=65536
+TasksMax=256
+# setup_logging already writes a rotating file under logs/. Avoid duplicating
+# reconnect-heavy stdout into journald, whose quota is system-wide.
+StandardOutput=null
+StandardError=journal
+SyslogIdentifier=wallcrossing
+
+[Install]
+WantedBy=multi-user.target

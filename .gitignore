@@ -43,6 +43,7 @@ wall.v1i.coco/
 *.weights
 *.tflite
 *.trt
+*.rknn
 
 # OS / editor
 .DS_Store

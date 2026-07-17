@@ -77,7 +77,10 @@ def decode_yolo(
     if pred.shape[1] == 6:
         return _decode_end_to_end(pred, orig_shape, imgsz, conf_thres, person_class_id)
 
-    if pred.shape[0] < pred.shape[1]:
+    # Raw RKNN heads are commonly [features, candidates]. With a one-candidate
+    # synthetic/output tensor the candidate axis can be shorter than features,
+    # so the old shape[0] < shape[1] rule missed [84, 1].
+    if pred.shape[1] < 5 or pred.shape[0] < pred.shape[1]:
         pred = pred.transpose()
     return _decode_raw_head(pred, orig_shape, imgsz, conf_thres, person_class_id, iou_thres)
 

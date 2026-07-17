@@ -36,9 +36,8 @@ def test_per_camera_independent(tmp_path):
     assert m.update("b", True, now_mono=0.0) is True
 
 
-def test_write_appends_jsonl(tmp_path):
-    m = _mgr(tmp_path, hits=1)
-    event = AlertEvent(
+def _event():
+    return AlertEvent(
         alert_id="cam-1",
         camera_id="cam",
         camera_name="Gate",
@@ -49,7 +48,28 @@ def test_write_appends_jsonl(tmp_path):
         overlap_ratio=0.5,
         evidence_path="x.jpg",
     )
-    m.write(event)
-    m.write(event)
+
+
+def test_write_appends_jsonl(tmp_path):
+    m = _mgr(tmp_path, hits=1)
+    m.write(_event())
+    m.write(_event())
     lines = (tmp_path / "alerts.jsonl").read_text(encoding="utf-8").strip().splitlines()
     assert len(lines) == 2
+
+
+def test_alert_log_rotation_keeps_configured_backups(tmp_path):
+    path = tmp_path / "alerts.jsonl"
+    m = AlertManager(1, 0.0, path, log_max_mb=1, log_backup_count=2)
+    # Use a tiny threshold after initialization for a fast deterministic test.
+    m.log_max_bytes = 1
+
+    m.write(_event())
+    m.write(_event())
+    m.write(_event())
+    m.write(_event())
+
+    assert path.exists()
+    assert (tmp_path / "alerts.jsonl.1").exists()
+    assert (tmp_path / "alerts.jsonl.2").exists()
+    assert not (tmp_path / "alerts.jsonl.3").exists()

@@ -24,14 +24,46 @@ class AlertManager:
         consecutive_hits: int,
         cooldown_seconds: float,
         alert_log_path: str | Path,
+        log_max_mb: int = 10,
+        log_backup_count: int = 2,
     ):
         self.consecutive_hits = consecutive_hits
         self.cooldown_seconds = cooldown_seconds
         self.alert_log_path = Path(alert_log_path)
+        self.log_max_bytes = log_max_mb * 1024 * 1024
+        self.log_backup_count = log_backup_count
         self.alert_log_path.parent.mkdir(parents=True, exist_ok=True)
 
         self._hit_streak: dict[str, int] = defaultdict(int)
         self._last_alert_mono: dict[str, float] = {}
+        self._rotate_log_if_needed()
+
+    def _rotate_log_if_needed(self) -> None:
+        if self.log_max_bytes <= 0:
+            return
+        try:
+            if self.alert_log_path.stat().st_size < self.log_max_bytes:
+                return
+        except FileNotFoundError:
+            return
+
+        if self.log_backup_count <= 0:
+            self.alert_log_path.unlink(missing_ok=True)
+            return
+
+        oldest = self.alert_log_path.with_name(
+            f"{self.alert_log_path.name}.{self.log_backup_count}"
+        )
+        oldest.unlink(missing_ok=True)
+        for index in range(self.log_backup_count - 1, 0, -1):
+            source = self.alert_log_path.with_name(f"{self.alert_log_path.name}.{index}")
+            if source.exists():
+                source.replace(
+                    self.alert_log_path.with_name(f"{self.alert_log_path.name}.{index + 1}")
+                )
+        self.alert_log_path.replace(
+            self.alert_log_path.with_name(f"{self.alert_log_path.name}.1")
+        )
 
     def update(
         self,
@@ -57,6 +89,7 @@ class AlertManager:
         return True
 
     def write(self, event: AlertEvent) -> None:
+        self._rotate_log_if_needed()
         with self.alert_log_path.open("a", encoding="utf-8") as f:
             f.write(json.dumps(event.to_log_dict(), ensure_ascii=False) + "\n")
         logger.info(

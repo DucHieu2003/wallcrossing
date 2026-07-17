@@ -19,7 +19,6 @@ from config import (
     LOG_FILE_PATH,
     MODEL_BACKEND,
     SERVICE_DIR,
-    YOLO26_PT_PATH,
     YOLO26_RKNN_PATH,
 )
 
@@ -31,7 +30,7 @@ def mask_url_secret(url: str) -> str:
 
 
 def parse_args() -> argparse.Namespace:
-    parser = argparse.ArgumentParser(description="Wall-crossing detection service")
+    parser = argparse.ArgumentParser(description="Dich vu phat hien vuot tuong")
     parser.add_argument("--log-level", default="INFO", help="DEBUG, INFO, WARNING, ERROR")
     return parser.parse_args()
 
@@ -39,24 +38,42 @@ def parse_args() -> argparse.Namespace:
 def log_startup_banner(cfg) -> None:
     enabled = cfg.enabled_cameras()
     logger.info("=" * 60)
-    logger.info("Wall Crossing Service starting")
-    logger.info("Service dir: %s", SERVICE_DIR)
+    logger.info("Dich vu phat hien vuot tuong dang khoi dong")
+    logger.info("Thu muc dich vu: %s", SERVICE_DIR)
     logger.info("Backend: %s", MODEL_BACKEND)
-    logger.info("YOLO26 PT: %s", YOLO26_PT_PATH)
     logger.info("YOLO26 RKNN: %s", YOLO26_RKNN_PATH)
-    logger.info("Image size: %s | confidence: %.2f", IMG_SIZE, DET_CONF_THRES)
-    logger.info("Decode backend: %s", DECODE_BACKEND)
-    logger.info("Enabled cameras: %d / %d", len(enabled), len(cfg.cameras))
-    logger.info("Evidence dir: %s", EVIDENCE_DIR)
-    logger.info("Alert log: %s", ALERT_LOG_PATH)
-    logger.info("Log file: %s", LOG_FILE_PATH)
+    logger.info("Kich thuoc anh: %s | nguong tin cay: %.2f", IMG_SIZE, DET_CONF_THRES)
+    logger.info("Backend giai ma: %s", DECODE_BACKEND)
+    logger.info("Camera bat: %d / %d", len(enabled), len(cfg.cameras))
+    logger.info("Che do detect: %s", "ROI" if cfg.pipeline.detect_roi_enabled else "toan khung hinh")
+    logger.info(
+        "Thu thap dataset: bat=%s thu_muc=%s gioi_han=%.1fGB loc_chuyen_dong=%s",
+        cfg.pipeline.dataset_capture_enabled,
+        cfg.pipeline.dataset_capture_dir,
+        cfg.pipeline.dataset_max_disk_gb,
+        cfg.pipeline.motion_filter_enabled,
+    )
+    logger.info(
+        "Canh bao: bat=%s evidence=%s gioi_han=%.1fGB log=%s xoay=%dMBx%d",
+        cfg.pipeline.alerts_enabled,
+        EVIDENCE_DIR,
+        cfg.pipeline.evidence_max_disk_gb,
+        ALERT_LOG_PATH,
+        cfg.pipeline.alert_log_max_mb,
+        cfg.pipeline.alert_log_backup_count + 1,
+    )
+    logger.info(
+        "Bao ve bo nho: nguong_restart_rss=%.0fMB",
+        cfg.pipeline.rss_graceful_restart_mb,
+    )
+    logger.info("File log: %s", LOG_FILE_PATH)
     for cam in enabled:
         logger.info("Camera %-18s %s", cam.id, mask_url_secret(cam.rtsp_url))
     logger.info("=" * 60)
 
 
 def quiet_opencv_warnings() -> None:
-    """Keep only OpenCV errors; GStreamer reconnect WARN spam drowns our own logs."""
+    """Chi giu loi OpenCV; canh bao reconnect GStreamer spam lam nhieu log cua ta."""
     try:
         import cv2
 
@@ -77,8 +94,8 @@ def main() -> int:
 
     def request_stop(signum, frame):
         del frame
-        logger.info("Received signal %s; stopping service...", signum)
-        pipeline.stop()
+        logger.info("Nhan tin hieu %s; yeu cau dung dich vu...", signum)
+        pipeline.request_stop()
 
     signal.signal(signal.SIGINT, request_stop)
     signal.signal(signal.SIGTERM, request_stop)
@@ -86,10 +103,10 @@ def main() -> int:
     try:
         pipeline.run()
     except KeyboardInterrupt:
-        logger.info("KeyboardInterrupt received; stopping service...")
+        logger.info("Nhan KeyboardInterrupt; dang dung dich vu...")
         pipeline.stop()
     finally:
-        logger.info("Wall Crossing Service stopped")
+        logger.info("Dich vu phat hien vuot tuong da dung")
 
     return 0
 
@@ -98,5 +115,5 @@ if __name__ == "__main__":
     try:
         raise SystemExit(main())
     except Exception as exc:
-        print(f"ERROR: {exc}", file=sys.stderr, flush=True)
+        print(f"LOI: {exc}", file=sys.stderr, flush=True)
         raise SystemExit(1)

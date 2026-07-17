@@ -10,10 +10,11 @@ def _polygon_area(poly: np.ndarray) -> float:
 
 
 def _clip_polygon(subject: np.ndarray, clip: np.ndarray) -> np.ndarray:
-    """Sutherland-Hodgman: clip `subject` polygon against convex-ish `clip` polygon.
+    """Sutherland-Hodgman: cat da giac `subject` theo da giac loi `clip`.
 
-    Works correctly when `clip` (the bbox rectangle here) is convex.
-    Returns the clipped polygon vertices (possibly empty).
+    Dung khi `clip` (o day la hinh chu nhat bbox) la da giac loi.
+    Tra ve cac dinh da giac sau khi cat (co the rong).
+    Tinh dung chi phu thuoc chieu quay cua `clip`, khong phu thuoc `subject`.
     """
     output = subject
 
@@ -56,16 +57,6 @@ def _intersect(p1: np.ndarray, p2: np.ndarray, a: np.ndarray, b: np.ndarray) -> 
     return p1 + t * r
 
 
-def _ensure_ccw(poly: np.ndarray) -> np.ndarray:
-    x = poly[:, 0]
-    y = poly[:, 1]
-    signed = np.dot(x, np.roll(y, 1)) - np.dot(y, np.roll(x, 1))
-    # signed > 0 => clockwise in image coords (y-down); flip to get consistent winding
-    if signed > 0:
-        return poly[::-1]
-    return poly
-
-
 def bbox_to_band(
     bbox_xyxy: tuple[float, float, float, float],
     contact_mode: str,
@@ -80,24 +71,23 @@ def bbox_to_band(
 
 def overlap_ratio(
     bbox_xyxy: tuple[float, float, float, float],
-    wall_polygon: list[list[float]],
+    wall_polygon: list[list[float]] | np.ndarray,
     contact_mode: str = "bottom_band",
     bottom_band_ratio: float = 0.25,
 ) -> float:
-    """Fraction of the bbox (or its bottom band) area that lies inside the wall polygon.
+    """Ty le dien tich bbox (hoac dai duoi cua bbox) nam trong da giac tuong.
 
-    Returns 0.0 when there is no overlap. The denominator is the band area, so a
-    bbox whose bottom band sits fully inside the wall returns ~1.0.
+    Tra ve 0.0 khi khong giao nhau. Mau so la dien tich dai, nen bbox co dai
+    duoi nam tron trong tuong se tra ve ~1.0.
     """
     band = bbox_to_band(bbox_xyxy, contact_mode, bottom_band_ratio)
     band_area = _polygon_area(band)
     if band_area <= 0:
         return 0.0
 
-    wall = np.array(wall_polygon, dtype=float)
+    wall = np.asarray(wall_polygon, dtype=float)
     if len(wall) < 3:
         return 0.0
-    wall = _ensure_ccw(wall)
 
     clipped = _clip_polygon(wall, band)
     if len(clipped) < 3:
@@ -109,7 +99,7 @@ def overlap_ratio(
 
 def touches_wall(
     bbox_xyxy: tuple[float, float, float, float],
-    wall_polygon: list[list[float]],
+    wall_polygon: list[list[float]] | np.ndarray,
     min_overlap_ratio: float,
     contact_mode: str = "bottom_band",
     bottom_band_ratio: float = 0.25,

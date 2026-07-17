@@ -15,21 +15,57 @@ DET_CONF_THRES = 0.45
 PERSON_CLASS_ID = 0
 
 DEFAULT_DETECT_FPS = 5  # 5 FPS / camera, near-real-time, predictable NPU load
-DECODE_BACKEND = "opencv"  # gstreamer | opencv
+DECODE_BACKEND = "gstreamer"  # gstreamer | opencv
+SHUTDOWN_TIMEOUT_SECONDS = 15
+HEALTH_LOG_INTERVAL_SECONDS = 60
+STALE_READER_WARN_SECONDS = 60
+MAX_CONSECUTIVE_PROCESS_ERRORS = 30
+# Dung mem va de systemd restart khi RSS vuot nguong nay; MemoryHigh/Max van
+# bao ve cung o 5.5/6.5GB trong deploy/wallcrossing.service.
+RSS_GRACEFUL_RESTART_MB = 4800
+RSS_CHECK_INTERVAL_SECONDS = 5.0
 # "opencv" (FFmpeg) decode bang CPU — rat nang voi nhieu camera, dac biet H.265.
 # Neu ffmpeg tren box co decoder rkmpp (kiem tra: ffmpeg -decoders | grep rkmpp)
 # thi dat FFMPEG_VIDEO_CODEC = "hevc_rkmpp" de decode bang VPU, giam manh CPU.
 FFMPEG_VIDEO_CODEC = ""
 RTSP_CODEC = "h265"  # h264 | h265 (chi dung cho backend gstreamer) — camera hien tai la HEVC
-RTSP_TRANSPORT = "tcp"  # tcp | udp — mot so camera chay UDP on dinh hon TCP
+RTSP_TRANSPORT = "tcp"  # tcp | udp
+DETECT_ROI_ENABLED = False
+DETECT_ROI_AXIS = "auto"  # auto | x | y
+DETECT_ROI_MIN_EXTENT_RATIO = 0.5  # crop toi thieu nua khung theo truc detect
+DETECT_ROI_SIDE_MARGIN_RATIO = 0.05  # mo rong 2 phia quanh wall_polygon
 EVIDENCE_DIR = os.path.join(SERVICE_DIR, "outputs", "evidence")
+EVIDENCE_MAX_DISK_GB = 2.0
 ALERT_LOG_PATH = os.path.join(SERVICE_DIR, "logs", "alerts.jsonl")
+ALERT_LOG_MAX_MB = 10
+ALERT_LOG_BACKUP_COUNT = 2
+# Luu anh moi detection (co ve tat ca bbox nguoi + polygon) de xem model
+# nhan nham gi tren full frame, khong phu thuoc vao alert. Bat khi debug.
+DEBUG_PREVIEW_ENABLED = False
+DEBUG_PREVIEW_DIR = os.path.join(SERVICE_DIR, "outputs", "debug_preview")
+DEBUG_PREVIEW_MAX_DISK_GB = 1.0
+DEBUG_PREVIEW_INTERVAL_SECONDS = 2.0  # toi da 1 anh preview / camera / 2s
+DATASET_CAPTURE_ENABLED = True
+DATASET_CAPTURE_DIR = os.path.join(SERVICE_DIR, "outputs", "dataset_capture")
+DATASET_DETECTION_INTERVAL_SECONDS = 5.0  # toi da 1 anh + nhan / camera / 5s khi co nguoi
+DATASET_BACKGROUND_INTERVAL_SECONDS = 28800.0  # 1 background nhan rong / camera / 8 gio
+DATASET_HARD_NEGATIVE_INTERVAL_SECONDS = 21600.0  # 1 bat/vat tinh nhan rong / camera / 6 gio
+DATASET_JPEG_QUALITY = 90
+ALERTS_ENABLED = True  # van luu alert log + evidence; co quota rieng de khong day dia
+# Gioi han dung luong dataset (GB). Vuot thi tu dong xoa anh cu nhat.
+# Box chi con ~43GB trong, de 20GB cho dataset la an toan.
+DATASET_MAX_DISK_GB = 20.0
+# Loc detection tinh (bat, vet son tren tuong...) bang background subtraction:
+# vat dung yen khong sinh chuyen dong nen bi loai, chi giu nguoi that di chuyen.
+# Chi ap dung cho dataset capture, KHONG anh huong toi canh bao.
+MOTION_FILTER_ENABLED = True
+MOTION_MIN_RATIO = 0.05  # bbox phai co >=5% pixel chuyen dong moi duoc luu
 
 # Kich thuoc anh (W, H) ma wall_polygon duoc ve tren do (anh Roboflow).
-# Frame RTSP thuc te la 2560x1440 nen polygon PHAI duoc scale theo ty le nay.
-# Hay kiem tra lai dung kich thuoc anh trong ban export Roboflow cua ban
-# (toa do polygon max ~1610x921 => uoc luong 1620x920).
-POLYGON_REF_SIZE = [1620, 920]
+# Neu frame RTSP co do phan giai khac (vd doi sang substream /ch01/1),
+# polygon se duoc tu dong scale theo ty le. De None neu polygon da dung
+# toa do cua frame thuc te.
+POLYGON_REF_SIZE = [1620, 920]  # vd: [1620, 920]
 
 MIN_OVERLAP_RATIO = 0.02
 CONSECUTIVE_HITS = 2
@@ -186,7 +222,7 @@ CAMERA_CONFIGS = [
     {
         "id": "cam_192_168_1_127",
         "name": "192-168-1-127.jpg",
-        "rtsp_url": "rtsp://user:pass@192.168.1.127:554/stream",
+        "rtsp_url": "rtsp://admin:123456@192.168.1.127:554/ch01/0",
         "enabled": False,
         "wall_polygon": [
             [1288.89, 912.0],
